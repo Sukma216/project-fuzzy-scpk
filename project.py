@@ -143,10 +143,6 @@ if page == "Home" :
         """, unsafe_allow_html=True)
 
     st.write("---")
-
-    # ==========================================
-    # 4. SECTION: BAGAIMANA SISTEM BEKERJA?
-    # ==========================================
     st.markdown("<h3 style='text-align: center; color: #1E3A8A; margin-bottom: 1.5rem;'>🛠️ Tiga Langkah Mudah Memulai Analisis</h3>", unsafe_allow_html=True)
     
     col_f1, col_f2, col_f3 = st.columns(3)
@@ -283,9 +279,9 @@ elif page == "Input" :
             {"nama": "Salary (Gaji USD)", "kolom_csv": "Salary", "type": "benefit", "min": 0, "max": 200000, "default": 70000, "step": 5000},
             {"nama": "Skills Gap (Tingkat Kesulitan)", "kolom_csv": "Skills Gap", "type": "cost", "min": 1.0, "max": 10.0, "default": 5.0, "step": 0.1},
             {"nama": "Job Satisfaction (Kepuasan Kerja)", "kolom_csv": "Job Satisfaction", "type": "benefit", "min": 1, "max": 10, "default": 7, "step": 1},
-            {"nama": "Work Life Balance (Keseimbangan Waktu)", "kolom_csv": "Work Life Balance", "type": "benefit", "min": 1, "max": 10, "default": 6, "step": 1},
-            {"nama": "Growth Opportunity (Pertumbuhan Karir)", "kolom_csv": "Growth Opportunity", "type": "benefit", "min": 1, "max": 30, "default": 15, "step": 1},
-            {"nama": "Edu Level (Tingkat Pendidikan)", "kolom_csv": "Edu Level", "type": "benefit", "min": 1, "max": 5, "default": 3, "step": 1},
+            {"nama": "Work Life Balance (Keseimbangan Waktu)", "kolom_csv": "Work-Life Balance", "type": "benefit", "min": 1, "max": 10, "default": 6, "step": 1},
+            {"nama": "Growth Opportunity (Pertumbuhan Karir)", "kolom_csv": "Industry Growth Rate", "type": "benefit", "min": 1, "max": 30, "default": 15, "step": 1},
+            {"nama": "Edu Level (Tingkat Pendidikan)", "kolom_csv": "Education Level", "type": "benefit", "min": 1, "max": 5, "default": 3, "step": 1},
         ]
         daftar_nama_kriteria = [k["nama"] for k in semua_kriteria]
 
@@ -404,10 +400,33 @@ elif page == "Output":
         ].copy()
         
         if df_hasil.empty:
-            st.error("❌ Data tidak ditemukan untuk kombinasi alternatif ini.")
+            st.error("❌ Data tidak ditemukan untuk kombinasi alternatif ini di dataset asli.")
             st.stop()
 
-        # Konversi kategori ke numerik (Growth Rate & Edu Level)
+        # ambil kolom csv dari mapping aktif
+        kolom_dari_mapping = []
+        for info_kriteria in mapping_aktif.values():
+            if 'kolom' in info_kriteria:
+                kolom_dari_mapping.append(info_kriteria['kolom'])
+
+        kolom_numerik_otomatis = []
+        kolom_yang_hilang = []
+
+        for col in kolom_dari_mapping:
+            if col in df_hasil.columns:
+                kolom_numerik_otomatis.append(col)
+            else:
+                kolom_yang_hilang.append(col)
+
+        # kalo ada kolom yang salah ketik, ada tampilan peringatan di Streamlit
+            st.warning(f"⚠️ **Peringatan Struktur CSV:** Kolom {kolom_yang_hilang} tidak ditemukan di file CSV. Pastikan penulisan di `mapping_aktif` sudah sama persis.")
+
+        # kalo tidak ada satu pun kriteria yang cocok dengan CSV, hentikan agar tidak crash
+        if not kolom_numerik_otomatis:
+            st.error("❌ Tidak ada kolom kriteria yang cocok dengan dataset. Periksa kembali file konfigurasi mapping kamu!")
+            st.stop()
+
+        # Konversi kategori khusus ke numerik (Hanya jika kolomnya ada di dataset)
         if "Industry Growth Rate" in df_hasil.columns:
             df_hasil["Industry Growth Rate"] = df_hasil["Industry Growth Rate"].astype(str).str.strip().str.lower()
             df_hasil["Industry Growth Rate"] = df_hasil["Industry Growth Rate"].replace({"low": 10, "medium": 20, "high": 30})
@@ -416,14 +435,14 @@ elif page == "Output":
             df_hasil["Education Level"] = df_hasil["Education Level"].astype(str).str.strip().str.lower()
             df_hasil["Education Level"] = df_hasil["Education Level"].replace({"high school": 1, "associate": 2, "bachelor": 3, "master": 4, "phd": 5})
         
-        kolom_numerik = ["Education Level", "Industry Growth Rate", "Job Satisfaction", "Work-Life Balance", "Salary", "Skills Gap"]
+        # Paksa semua kolom kriteria yang valid menjadi tipe data numerik
+        for col in kolom_numerik_otomatis:
+            df_hasil[col] = pd.to_numeric(df_hasil[col], errors='coerce')
 
-        for col in kolom_numerik:
-            if col in df_hasil.columns:
-                df_hasil[col] = pd.to_numeric(df_hasil[col], errors='coerce')
-
-        # Hitung rata-rata kriteria per pekerjaan dari dataset
-        hasil_group = df_hasil.groupby('Current Occupation')[kolom_numerik].mean()
+        # Hitung rata-rata berdasarkan kriteria yang VALID aja
+        kolom_numerik_otomatis = list(set(kolom_numerik_otomatis))
+        
+        hasil_group = df_hasil.groupby('Current Occupation')[kolom_numerik_otomatis].mean()
         hasil_group.columns = hasil_group.columns.str.strip()
 
         # visualisasi fungsi keanggotaan
@@ -525,7 +544,7 @@ elif page == "Output":
                 data_sedang = fuzz.interp_membership(x_range, sedang, nilai_data)
                 data_tinggi = fuzz.interp_membership(x_range, tinggi, nilai_data)
 
-                # RULE BASE EVALUATION (MAMDANI IMPLICATION USING MIN)
+                # RULE BASE 
                 rule1 = min(user_rendah, data_rendah)
                 rule2 = min(user_sedang, data_sedang)
                 rule3 = min(user_tinggi, data_tinggi)
@@ -537,7 +556,7 @@ elif page == "Output":
                 if tipe == "cost":
                     agregasi = 1 - agregasi
 
-                # DEFUZZIFIKASI SEDERHANA (SKOR SKALA 100)
+                # DEFUZZIFIKASI  (SKOR SKALA 100)
                 skor = agregasi * 100
                 total_skor += skor
                 jumlah_kriteria += 1
