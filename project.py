@@ -242,6 +242,232 @@ elif page == "Input" :
         st.error("File CSV dataset belum berhasil dimuat dengan benar.")
 
 
-# OUTPUT
-elif page == "Output" :
-    st.write("lanjutin ya ji")
+elif page == "Output":
+    st.title("📈 Hasil Rekomendasi Pekerjaan")
+    st.write("Berikut hasil perhitungan untuk pendukung keputusan berdasarkan data yang sudah kamu input sebelumnya.")
+
+    if (
+        'input_user_aktif' not in st.session_state or
+        'mapping_aktif' not in st.session_state or
+        'alternatif_terpilih' not in st.session_state or
+        'jurusan_user' not in st.session_state
+    ):
+        st.warning("⚠️ Silakan isi data terlebih dahulu pada menu Input.")
+
+    else:
+        # Ambil data dari session state
+        input_user = st.session_state['input_user_aktif']
+        mapping_aktif = st.session_state['mapping_aktif']
+        alternatif_terpilih = st.session_state['alternatif_terpilih']
+        jurusan_user = st.session_state['jurusan_user']
+
+        # informasi data yang diinput user
+        st.subheader("🎓 Informasi Pengguna")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.info(f"Jurusan Dipilih: **{jurusan_user}**")
+        with col2:
+            st.success(f"Jumlah Alternatif: **{len(alternatif_terpilih)}**")
+        st.write("---")
+
+        # data prepocessing
+        df_hasil = df_asli[
+            (df_asli['Field of Study'] == jurusan_user) &
+            (df_asli['Current Occupation'].isin(alternatif_terpilih))
+        ].copy()
+        
+        if df_hasil.empty:
+            st.error("❌ Data tidak ditemukan untuk kombinasi alternatif ini.")
+            st.stop()
+
+        # Konversi kategori ke numerik (Growth Rate & Edu Level)
+        if "Industry Growth Rate" in df_hasil.columns:
+            df_hasil["Industry Growth Rate"] = df_hasil["Industry Growth Rate"].astype(str).str.strip().str.lower()
+            df_hasil["Industry Growth Rate"] = df_hasil["Industry Growth Rate"].replace({"low": 10, "medium": 20, "high": 30})
+        
+        if "Education Level" in df_hasil.columns:
+            df_hasil["Education Level"] = df_hasil["Education Level"].astype(str).str.strip().str.lower()
+            df_hasil["Education Level"] = df_hasil["Education Level"].replace({"high school": 1, "associate": 2, "bachelor": 3, "master": 4, "phd": 5})
+        
+        kolom_numerik = ["Education Level", "Industry Growth Rate", "Job Satisfaction", "Work-Life Balance", "Salary", "Skills Gap"]
+
+        for col in kolom_numerik:
+            if col in df_hasil.columns:
+                df_hasil[col] = pd.to_numeric(df_hasil[col], errors='coerce')
+
+        # Hitung rata-rata kriteria per pekerjaan dari dataset
+        hasil_group = df_hasil.groupby('Current Occupation')[kolom_numerik].mean()
+        hasil_group.columns = hasil_group.columns.str.strip()
+
+        # visualisasi fungsi keanggotaan
+        st.subheader(" 1. Analisis Fungsi Keanggotaan Per Kriteria")
+        st.write("Di bawah ini adalah analisis kurva fuzzy untuk masing-masing kriteria. Garis hitam tegas merupakan nilai target yang kamu tentukan, sedangkan garis putus-putus adalah posisi nilai rata-rata dari dataset:")
+
+        warna_garis = ['red', 'blue', 'green', 'purple', 'orange', 'brown', 'pink', 'gray']
+
+        # Looping untuk menggambar grafik kriteria satu per satu secara berurutan
+        for nama_kriteria, nilai_user in input_user.items():
+            kolom_csv = mapping_aktif[nama_kriteria]['kolom']
+            nilai_min = mapping_aktif[nama_kriteria]['min']
+            nilai_max = mapping_aktif[nama_kriteria]['max']
+
+            if kolom_csv not in hasil_group.columns:
+                continue
+
+            # Bangun range Semesta Pembicaraan (X)
+            x_range = np.arange(nilai_min, nilai_max + 1, 1)
+
+            # Buat kurva keanggotaan Segitiga (Trimf)
+            rendah = fuzz.trimf(x_range, [nilai_min, nilai_min, (nilai_min + nilai_max)/2])
+            sedang = fuzz.trimf(x_range, [nilai_min, (nilai_min + nilai_max)/2, nilai_max])
+            tinggi = fuzz.trimf(x_range, [(nilai_min + nilai_max)/2, nilai_max, nilai_max])
+
+            # Mulai plotting grafik kriteria ini
+            fig_kri, ax_kri = plt.subplots(figsize=(9, 4.5))
+            ax_kri.plot(x_range, rendah, label='Rendah', linewidth=2.5)
+            ax_kri.plot(x_range, sedang, label='Sedang', linewidth=2.5)
+            ax_kri.plot(x_range, tinggi, label='Tinggi', linewidth=2.5)
+
+            # Plot garis putus-putus untuk nilai pekerjaan/alternatif yang ada di dataset
+            for idx_alt, pekerjaan in enumerate(alternatif_terpilih):
+                if pekerjaan in hasil_group.index:
+                    nilai_alt = hasil_group.loc[pekerjaan, kolom_csv]
+                    if not pd.isna(nilai_alt):
+                        ax_kri.axvline(
+                            x=nilai_alt,
+                            color=warna_garis[idx_alt % len(warna_garis)],
+                            linestyle='--',
+                            linewidth=1.8,
+                            alpha=0.8,
+                            label=f"Data: {pekerjaan}"
+                        )
+
+            # Plot garis hitam tegas sebagai Target yang diinput oleh User via Slider
+            ax_kri.axvline(x=nilai_user, color='black', linestyle='-', linewidth=4, label='🎯 Target Kamu')
+
+            # Atur kelengkapan dekorasi grafik
+            ax_kri.set_title(f"Kurva Keanggotaan Kriteria: {nama_kriteria}", fontsize=12, fontweight='bold')
+            ax_kri.set_xlabel("Nilai Numerik")
+            ax_kri.set_ylabel("Derajat Keanggotaan (μ)")
+            ax_kri.legend(bbox_to_anchor=(1.02, 1), loc='upper left', fontsize=9)
+            ax_kri.grid(True, alpha=0.3)
+
+            # tampilan grafik
+            st.markdown(f"#### 📊 Kurva Fuzzy Kriteria: {nama_kriteria}")
+            st.pyplot(fig_kri)
+            st.caption(f"Target ideal yang kamu tentukan pada kriteria **{nama_kriteria}** adalah sebesar **{nilai_user}**.")
+            st.write("") # Memberi space antar grafik agar rapi
+
+        st.write("---")
+
+        # FUZZY MAMDANI
+        skor_final = []
+        for pekerjaan in alternatif_terpilih:
+            if pekerjaan not in hasil_group.index:
+                continue
+
+            total_skor = 0
+            jumlah_kriteria = 0
+
+            for nama_kriteria, nilai_user in input_user.items():
+                kolom_csv = mapping_aktif[nama_kriteria]['kolom']
+                tipe = mapping_aktif[nama_kriteria]['type']
+                nilai_min = mapping_aktif[nama_kriteria]['min']
+                nilai_max = mapping_aktif[nama_kriteria]['max']
+
+                if kolom_csv not in hasil_group.columns:
+                    continue
+
+                nilai_data = hasil_group.loc[pekerjaan, kolom_csv]
+                if pd.isna(nilai_data):
+                    continue
+
+                x_range = np.arange(nilai_min, nilai_max + 1, 1)
+
+                rendah = fuzz.trimf(x_range, [nilai_min, nilai_min, (nilai_min + nilai_max)/2])
+                sedang = fuzz.trimf(x_range, [nilai_min, (nilai_min + nilai_max)/2, nilai_max])
+                tinggi = fuzz.trimf(x_range, [(nilai_min + nilai_max)/2, nilai_max, nilai_max])
+
+                # Fuzzifikasi input user
+                user_rendah = fuzz.interp_membership(x_range, rendah, nilai_user)
+                user_sedang = fuzz.interp_membership(x_range, sedang, nilai_user)
+                user_tinggi = fuzz.interp_membership(x_range, tinggi, nilai_user)
+
+                # Fuzzifikasi nilai data lapangan
+                data_rendah = fuzz.interp_membership(x_range, rendah, nilai_data)
+                data_sedang = fuzz.interp_membership(x_range, sedang, nilai_data)
+                data_tinggi = fuzz.interp_membership(x_range, tinggi, nilai_data)
+
+                # RULE BASE EVALUATION (MAMDANI IMPLICATION USING MIN)
+                rule1 = min(user_rendah, data_rendah)
+                rule2 = min(user_sedang, data_sedang)
+                rule3 = min(user_tinggi, data_tinggi)
+
+                # AGREGASI ATURAN (MAX)
+                agregasi = max(rule1, rule2, rule3)
+
+                # IMPLEMENTASI COST / BENEFIT
+                if tipe == "cost":
+                    agregasi = 1 - agregasi
+
+                # DEFUZZIFIKASI SEDERHANA (SKOR SKALA 100)
+                skor = agregasi * 100
+                total_skor += skor
+                jumlah_kriteria += 1
+
+            if jumlah_kriteria > 0:
+                skor_akhir = total_skor / jumlah_kriteria
+                skor_final.append({
+                    "Pekerjaan": pekerjaan,
+                    "Skor Kecocokan": round(skor_akhir, 2)
+                })
+
+        # susun ranking dataframe
+        df_ranking = pd.DataFrame(skor_final)
+        if df_ranking.empty:
+            st.error("❌ Gagal memproses perangkingan fuzzy.")
+            st.stop()
+
+        df_ranking = df_ranking.sort_values(by="Skor Kecocokan", ascending=False).reset_index(drop=True)
+        df_ranking.index = df_ranking.index + 1
+
+        # OUTPUT, KESIMPULAN DAN REKOMENDASI
+        st.subheader("📊 2. Hasil Keputusan Akhir Rekomendasi")
+        
+        pekerjaan_terbaik = df_ranking.iloc[0]['Pekerjaan']
+        skor_terbaik = df_ranking.iloc[0]['Skor Kecocokan']
+
+        st.success(f"""
+         🎯 {pekerjaan_terbaik}
+        dengan akumulasi derajat tingkat kecocokan sebesar **{skor_terbaik:.2f}%**.
+        """)
+        st.write("---")
+
+        # TABEL PERANGKINGAN
+        st.markdown("**📋 Tabel Urutan Ranking Alternatif:**")
+        st.dataframe(df_ranking, use_container_width=True)
+        st.write("---")
+
+        # VISUALISASI PERANGKINGAN (BAR CHART)
+        st.markdown("**📊 Grafik Batang Tingkat Kesesuaian:**")
+        fig_bar, ax_bar = plt.subplots(figsize=(10, 4.5))
+        bars = ax_bar.bar(df_ranking['Pekerjaan'], df_ranking['Skor Kecocokan'], color='skyblue', edgecolor='royalblue')
+        ax_bar.set_title("Perbandingan Skor Kecocokan Hasil Rekomendasi", fontsize=12, fontweight='bold')
+        ax_bar.set_xlabel("Alternatif Pekerjaan")
+        ax_bar.set_ylabel("Skor Persentase (%)")
+        ax_bar.set_ylim(0, 110)
+        plt.xticks(rotation=15)
+
+        for bar in bars:
+            height = bar.get_height()
+            ax_bar.text(
+                bar.get_x() + bar.get_width()/2,
+                height + 1,
+                f'{height:.1f}%',
+                ha='center',
+                va='bottom',
+                fontsize=9,
+                fontweight='bold'
+            )
+        st.pyplot(fig_bar)
+        st.write("---")
