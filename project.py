@@ -47,8 +47,135 @@ st.sidebar.header("""📬 Contact Us
 
 # HOME
 if page == "Home" :
-    st.title("Sistem Pendukung Keputusan Pemilihan Pekerjaan Berdasarkan Jurusan")
-    st.write("Selamat datang di Aplikasi SPK Kelompok 7. Silakan buka menu **Data** untuk eksplorasi atau menu **Input** untuk menghitung rekomendasi.")
+    st.markdown("""
+        <style>
+
+        /* Style untuk Hero Section Container */
+        .hero-container {
+            background: linear-gradient(135deg, #1E3A8A 0%, #0D9488 100%);
+            padding: 3.5rem 2rem;
+            border-radius: 16px;
+            color: white;
+            text-align: center;
+            margin-bottom: 2.5rem;
+            box-shadow: 0 10px 25px -5px rgba(30, 58, 138, 0.3);
+        }
+        
+        .hero-title {
+            font-size: 40px !important;
+            font-weight: 800 !important;
+            color: #FFFFFF !important;
+            margin-bottom: 10px;
+            line-height: 1.2;
+        }
+        
+        .hero-subtitle {
+            font-size: 18px !important;
+            color: #E2E8F0 !important;
+            font-weight: 300;
+            max-width: 600px;
+            margin: 0 auto 25px auto;
+        }
+        
+        /* Card Fitur / Keunggulan */
+        .feature-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            border-left: 5px solid #0D9488;
+            margin-bottom: 1rem;
+            height: 100%;
+        }
+        
+        .feature-title {
+            font-size: 18px !important;
+            font-weight: 700 !important;
+            color: #1E3A8A;
+            margin-bottom: 8px;
+        }
+        
+        .feature-text {
+            font-size: 14px;
+            color: #4B5563;
+            line-height: 1.5;
+        }
+        
+        /* Stat/Badge Info */
+        .stat-box {
+            background-color: #EFF6FF;
+            border: 1px solid #BFDBFE;
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown("""
+        <div class="hero-container">
+            <h1 class="hero-title">🚀 Smart Career Pathfinder</h1>
+            <p class="hero-subtitle">Temukan masa depan karir terbaikmu secara objektif menggunakan kecerdasan sistem pendukung keputusan berbasis Logika Fuzzy Mamdani.</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    col_stat1, col_stat2, col_stat3 = st.columns(3)
+    with col_stat1:
+        st.markdown("""
+            <div class="stat-box">
+                <h3 style='margin:0; color:#1E3A8A;'>🧠 Fuzzy Logik</h3>
+                <p style='margin:0; font-size:14px; color:#4B5563;'>Mamdani Implication</p>
+            </div>
+        """, unsafe_allow_html=True)
+    with col_stat2:
+        st.markdown("""
+            <div class="stat-box">
+                <h3 style='margin:0; color:#0D9488;'>📊 Data Driven</h3>
+                <p style='margin:0; font-size:14px; color:#4B5563;'>Kalkulasi Riil Dataset</p>
+            </div>
+        """, unsafe_allow_html=True)
+    with col_stat3:
+        st.markdown("""
+            <div class="stat-box">
+                <h3 style='margin:0; color:#8B5CF6;'>🎯 Personalisasi</h3>
+                <p style='margin:0; font-size:14px; color:#4B5563;'>Sesuai Preferensimu</p>
+            </div>
+        """, unsafe_allow_html=True)
+
+    st.write("---")
+
+    # ==========================================
+    # 4. SECTION: BAGAIMANA SISTEM BEKERJA?
+    # ==========================================
+    st.markdown("<h3 style='text-align: center; color: #1E3A8A; margin-bottom: 1.5rem;'>🛠️ Tiga Langkah Mudah Memulai Analisis</h3>", unsafe_allow_html=True)
+    
+    col_f1, col_f2, col_f3 = st.columns(3)
+    
+    with col_f1:
+        st.markdown("""
+            <div class="feature-card">
+                <div class="feature-title">1. Pilih Alternatif</div>
+                <div class="feature-text">Tentukan jurusan asalmu serta pilih beberapa alternatif pekerjaan yang ingin kamu komparasikan kecocokannya.</div>
+            </div>
+        """, unsafe_allow_html=True)
+        
+    with col_f2:
+        st.markdown("""
+            <div class="feature-card" style="border-left-color: #1E3A8A;">
+                <div class="feature-title">2. Atur Preferensi</div>
+                <div class="feature-text">Gunakan slider interaktif untuk memasukkan target idealmu pada kriteria Gaji, Work-Life Balance, hingga Skills Gap.</div>
+            </div>
+        """, unsafe_allow_html=True)
+        
+    with col_f3:
+        st.markdown("""
+            <div class="feature-card">
+                <div class="feature-title">3. Lihat Rekomendasi</div>
+                <div class="feature-text">Sistem akan melakukan proses fuzzifikasi, evaluasi aturan, dan memberikan laporan perangkingan lengkap berupa grafik.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    st.write("---")
 
 # DATA 
 elif page == "Data" :
